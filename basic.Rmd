@@ -1,0 +1,36 @@
+---
+title: "Police Complaints"
+author: "David Kane"
+date: "6/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+x <- read_csv("https://raw.githubusercontent.com/Financial-Times/police-misconduct-complaints-analysis/main/output/philly_clean.csv") %>% 
+  select(officer_id, po_race, po_sex)
+```
+
+
+```{r, clean_data}
+clean_data <- x %>% 
+  group_by(officer_id) %>% 
+  summarise(total = n()) %>% 
+  arrange(desc(total))
+  
+```
+
+```{r, plot_data}
+clean_data %>% 
+  slice(1:10) %>% 
+  ggplot(aes(x = as.character(officer_id), y = total)) +
+    geom_col() +
+    coord_flip() +
+    labs(title = "Complaints about Police Officers in Philadelphia",
+         subtitle = "Most complained about officers have many more complaints than\nthe typical officer",
+         x = NULL,
+         y = "Complaints",
+         caption = "Data from Financial Times")
+```
+
