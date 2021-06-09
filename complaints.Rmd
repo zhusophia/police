@@ -8,18 +8,25 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
-x <- read_csv("https://raw.githubusercontent.com/Financial-Times/police-misconduct-complaints-analysis/main/output/philly_clean.csv") %>% 
+
+# It is somewhat sloppy to include a read_csv() command in the setup chunk.
+# Normally, we would just load libraries here. However, we have not learned
+# about the col_types argument to read_csv() yet, so we can't make the annoying
+# message go away unless we stick the call in a code chunk with a code chunk
+# option like message = FALSE or include = FALSE.
+
+raw_data <- read_csv("https://raw.githubusercontent.com/Financial-Times/police-misconduct-complaints-analysis/main/output/philly_clean.csv") %>% 
   select(officer_id, po_race, po_sex)
 ```
 
 
 ```{r, clean_data}
-clean_data <- x %>% 
+clean_data <- raw_data %>% 
   group_by(officer_id) %>% 
   summarise(total = n()) %>% 
   mutate(compl_dec = ntile(total, 10)) %>% 
   group_by(compl_dec) %>% 
-  summarize(compl_total = sum(compl_dec)) %>% 
+  summarize(compl_total = sum(total)) %>% 
   mutate(compl_perc = compl_total / sum(compl_total)) %>% 
   select(compl_dec, compl_perc)
 ```
