@@ -1,0 +1,133 @@
+---
+title: "final"
+author: "Nosa Lawani"
+date: "6/10/2021"
+output: html_document
+---
+
+---
+title: "Police Complaints"
+author: "David Kane"
+date: "6/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(ggthemes)
+
+# It is somewhat sloppy to include a read_csv() command in the setup chunk.
+# Normally, we would just load libraries here. However, we have not learned
+# about the col_types argument to read_csv() yet, so we can't make the annoying
+# message go away unless we stick the call in a code chunk with a code chunk
+# option like message = FALSE or include = FALSE.
+
+raw_data_ph <- read_csv("https://raw.githubusercontent.com/Financial-Times/police-misconduct-complaints-analysis/main/output/philly_clean.csv") %>% 
+  select(officer_id)  
+
+# Do the same for NYC and Chicago. For Chicago, use arrange() function and 
+# comparison with other columns to decide between crid and UID. 
+
+raw_data_ny <- read_csv("https://raw.githubusercontent.com/Financial-Times/police-misconduct-complaints-analysis/main/output/nyc_clean.csv") %>% 
+  select(OfficerID) 
+
+raw_data_ch <- read_csv("https://raw.githubusercontent.com/Financial-Times/police-misconduct-complaints-analysis/main/output/chicago_clean.csv") %>% 
+  select(UID) 
+```
+
+
+```{r, cleaning}
+
+# This code makes a table that lets us know how many times each officer id appeared 
+# in the tibble, i.e. how many complaints each officer has.
+
+data_ph <- raw_data_ph %>% 
+  group_by(officer_id) %>% 
+  summarise(total = n()) %>% 
+  
+# We now want to know in which percentile (out of 10) each officer is, based on
+# the amount of complaints he has. We could use mutate and percentile, as we did 
+# multiple times in Wrangling B. But ntile() accomplishes the same in less code.
+  
+  mutate(compl_dec = ntile(total, 10)) %>% 
+  
+# As you build a pipe, you want to look at the result after each step to make
+# sure it does what you want. Only after it is working would you then assign
+# the result to an object which you can use later. 
+  
+# We want to know the total number of complaints in each decile of officers.
+  
+  group_by(compl_dec) %>% 
+  summarize(compl_total = sum(total)) %>% 
+  
+# The graph needs total complaints as a percentage, which is easy to
+# calculate. Then, we only keep around the variables we need for the plot.
+  
+  mutate(compl_perc = compl_total / sum(compl_total)) %>% 
+  select(compl_dec, compl_perc)
+
+ # Do the same for New York and Chicago. Cannot copy exactly because of differing
+ # names for the officer column. 
+
+data_ny <- raw_data_ny %>% 
+ group_by(OfficerID) %>% 
+  summarize(total = n()) %>% 
+  mutate(compl_dec = ntile(total, 10)) %>% 
+  group_by(compl_dec) %>% 
+  summarize(compl_total = sum(total)) %>% 
+  mutate(compl_perc = compl_total / sum(compl_total)) %>% 
+  select(compl_dec, compl_perc) 
+  
+ data_ch <- raw_data_ch %>% 
+  group_by(UID) %>% 
+  summarize(total = n()) %>% 
+  mutate(compl_dec = ntile(total, 10)) %>% 
+  group_by(compl_dec) %>% 
+  summarize(compl_total = sum(total)) %>% 
+  mutate(compl_perc = compl_total / sum(compl_total)) %>% 
+  select(compl_dec, compl_perc) 
+```
+
+```{r joining}
+# Prepare data for joining. Add city column. This does not have to be a separate
+# code chunk, this is just to demarcate a new breakout session. 
+
+data_ph <- data_ph %>% 
+  mutate(city = "Philadelphia")
+
+data_ny <- data_ny %>% 
+  mutate(city = "New York")
+  
+data_ch <- data_ch %>% 
+  mutate(city = "Chicago")
+  
+  
+clean_data <- bind_rows(data_ph, data_ny, data_ch) 
+```
+
+```{r, plotting}
+# An if_else statements allows us to change the color only if the tenth 
+# decile is equal to 10. We will do this if we have time. 
+
+fill_dec <- if_else(clean_data$compl_dec == 10, "lightblue", "grey")
+
+# We could just have one giant pipe which goes directly into ggplot(), like we
+# do in the tutorials. There is nothing wrong with that approach, but it is
+# often easier to split your work up into separate parts, the better to make
+# sure that each part is doing what you want.
+
+clean_data %>% 
+  ggplot(aes(x = compl_dec, y = compl_perc)) +
+  geom_col(fill = if_else(clean_data$compl_dec == 10, "lightblue", "grey")) +
+  labs(title = "Distribution of Police Complaints in Philadelphia",
+         subtitle = "In all cities, one tenth of officers get over a third of the complaints",
+         x = "Complaint Decile",
+         y = NULL,
+         caption = "Financial Times (2021)") +
+  facet_wrap(~ city, nrow = 1) +
+  scale_x_continuous(breaks = 1:10) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  theme_clean()
+```
+
