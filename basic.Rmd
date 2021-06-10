@@ -32,8 +32,12 @@ raw_data <- read_csv("https://raw.githubusercontent.com/Financial-Times/police-m
 clean_data <- raw_data %>% 
   group_by(officer_id) %>% 
   summarise(total = n()) %>% 
-  arrange(desc(total))
+  mutate(compl_dec = ntile(total, 10)) %>% 
+  group_by(compl_dec) %>% 
+  summarize(compl_total = sum(total)) %>% 
+  mutate(compl_percentage = compl_total/sum(compl_total))
 ```
+
 
 ```{r, plot_data}
 clean_data %>% 
