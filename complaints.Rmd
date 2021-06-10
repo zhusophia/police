@@ -16,37 +16,36 @@ library(tidyverse)
 # option like message = FALSE or include = FALSE.
 
 raw_data <- read_csv("https://raw.githubusercontent.com/Financial-Times/police-misconduct-complaints-analysis/main/output/philly_clean.csv") %>% 
-  select(officer_id, po_race, po_sex) %>% 
-  mutate(city = "Philadelphia")
+  select(officer_id) 
 ```
 
 
 ```{r, clean_data}
-# First portion of the pipe is the same that we did on Monday. We want to know
-# how many complaints each office received.
+
+# This code makes a table that lets us know how many times each officer id appeared 
+# in the tibble, i.e. how many complaints each officer has.
 
 clean_data <- raw_data %>% 
   group_by(officer_id) %>% 
   summarise(total = n()) %>% 
   
-  # We now want to know which percentile (out of 10) each office is in. We could
-  # split up this flow into separate pipes, or even separate R code chunks, but
-  # keeping it all together is convenient.
+# We now want to know in which percentile (out of 10) each officer is, based on
+# the amount of complaints he has. We could use mutate and percentile, as we did 
+# multiple times in Wrangling B. But ntile() accomplishes the same in less code.
   
   mutate(compl_dec = ntile(total, 10)) %>% 
   
-  # As you build a pipe, you want to look at the result after each step to make
-  # sure it does what you want. Only after it is working would you then assign
-  # the result to an object which you can use later.
+# As you build a pipe, you want to look at the result after each step to make
+# sure it does what you want. Only after it is working would you then assign
+# the result to an object which you can use later. 
   
-  # For each decile, we want to know the total number of complaints for all the
-  # officers in that decile.
+# We want to know the total number of complaints in each decile of officers.
   
   group_by(compl_dec) %>% 
   summarize(compl_total = sum(total)) %>% 
   
-  # The graph needs total complaints as a percentage, which is easy to
-  # calculate. Then, we only keep around the variables we need for the plot.
+# The graph needs total complaints as a percentage, which is easy to
+# calculate. Then, we only keep around the variables we need for the plot.
   
   mutate(compl_perc = compl_total / sum(compl_total)) %>% 
   select(compl_dec, compl_perc)
@@ -62,7 +61,7 @@ clean_data %>%
   ggplot(aes(x = compl_dec, y = compl_perc)) +
     geom_col() +
     labs(title = "Distribution of Police Complaints in Philadelphia",
-         subtitle = "Most complained about officers account for a vastly\ndisproportionate percentage of the total complaints",
+         subtitle = "A tenth of officers get a third of the complaints",
          x = "Complaint Decile",
          y = NULL,
          caption = "Data from Financial Times") +
