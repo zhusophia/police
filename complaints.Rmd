@@ -1,7 +1,7 @@
 ---
 title: "Police Complaints"
-author: "David Kane"
-date: "6/6/2021"
+author: "Sophia Zhu"
+date: "6/10/2021"
 output: html_document
 ---
 
@@ -17,10 +17,40 @@ library(tidyverse)
 
 raw_data <- read_csv("https://raw.githubusercontent.com/Financial-Times/police-misconduct-complaints-analysis/main/output/philly_clean.csv") %>% 
   select(officer_id) 
+
+data_nyc <- read_csv("https://raw.githubusercontent.com/Financial-Times/police-misconduct-complaints-analysis/main/output/nyc_clean.csv") %>% 
+  select(OfficerID) 
+
+data_chicago <- read_csv("https://raw.githubusercontent.com/Financial-Times/police-misconduct-complaints-analysis/main/output/chicago_clean.csv") %>% 
+select(UID) %>% 
+mutate(city = "Chicago")
+```
+
+```{r, echo =FALSE}
+clean_nyc_data <- data_nyc %>% 
+  group_by(OfficerID) %>% 
+  summarise(total = n()) %>% 
+  mutate(comp = ntile(total,10)) %>% 
+  group_by(comp) %>% 
+  summarize(compl_total = sum(total)) %>% 
+  mutate(compl_perc = compl_total / sum(compl_total)) %>% 
+  select(comp, compl_perc) %>% 
+   mutate(city = "NYC")
+```
+```{r}
+clean_chicago_data <- data_chicago %>% 
+  group_by(UID) %>% 
+  summarise(total = n()) %>% 
+  mutate(comp = ntile(total, 10)) %>% 
+  group_by(comp) %>% 
+  summarize(compl_total= sum(total)) %>% 
+  mutate(compl_perc = compl_total/sum(compl_total)) %>% 
+  select(comp, compl_perc) %>% 
+  mutate(city = "Chicago")
 ```
 
 
-```{r, clean_data}
+```{r, clean_data, echo = FALSE}
 
 # This code makes a table that lets us know how many times each officer id appeared 
 # in the tibble, i.e. how many complaints each officer has.
@@ -33,7 +63,7 @@ clean_data <- raw_data %>%
 # the amount of complaints he has. We could use mutate and percentile, as we did 
 # multiple times in Wrangling B. But ntile() accomplishes the same in less code.
   
-  mutate(compl_dec = ntile(total, 10)) %>% 
+  mutate(comp = ntile(total, 10)) %>% 
   
 # As you build a pipe, you want to look at the result after each step to make
 # sure it does what you want. Only after it is working would you then assign
@@ -41,31 +71,36 @@ clean_data <- raw_data %>%
   
 # We want to know the total number of complaints in each decile of officers.
   
-  group_by(compl_dec) %>% 
+  group_by(comp) %>% 
   summarize(compl_total = sum(total)) %>% 
   
 # The graph needs total complaints as a percentage, which is easy to
 # calculate. Then, we only keep around the variables we need for the plot.
   
   mutate(compl_perc = compl_total / sum(compl_total)) %>% 
-  select(compl_dec, compl_perc)
+  select(comp, compl_perc) %>% 
+  mutate(city = "Philly")
+
+useful_data <- (bind_rows(clean_chicago_data, clean_nyc_data, clean_data))
+
 ```
 
-```{r, plot_data}
+```{r, plot_data, echo = FALSE}
 # We could just have one giant pipe which goes directly into ggplot(), like we
 # do in the tutorials. There is nothing wrong with that approach, but it is
 # often easier to split your work up into separate parts, the better to make
 # sure that each part is doing what you want.
 
-clean_data %>% 
-  ggplot(aes(x = compl_dec, y = compl_perc)) +
-    geom_col() +
-    labs(title = "Distribution of Police Complaints in Philadelphia",
-         subtitle = "A tenth of officers get a third of the complaints",
-         x = "Complaint Decile",
+useful_data %>% 
+  ggplot(aes(x = comp, y = compl_perc,)) +
+    geom_col(fill = ifelse(useful_data$comp>=10, "cornflowerblue", "royalblue4")) +
+    labs(title = "Distribution of Police Complaints in Philadelphia, NYC, and Chicago",
+         subtitle = "Fundraiser is being started to buy officers in the lowest complaint decile 20 donuts/week",
+         x = "Complaint Decile \n\n Officers are ranked by number of complaints and grouped into deciles",
          y = NULL,
          caption = "Data from Financial Times") +
     scale_x_continuous(breaks = 1:10) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) 
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1))+
+  facet_wrap(~ city)
 ```
 
